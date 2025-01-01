@@ -8,15 +8,10 @@ import "core:strings"
 
 import win "core:sys/windows"
 
-Options :: struct {
-  buf_size: u32,
-  passes:   u32,
-}
-
 API :: struct {
   lib:             dynlib.Library,
   committed:       rawptr,
-  opts:            Options,
+  buf_size:        u32,
   fasm_GetVersion: proc() -> u32,
   fasm_Assemble:   proc(
     lpSource: cstring,
@@ -33,18 +28,29 @@ ApiResult :: union {
 }
 DllError :: distinct string
 
-make :: proc(opts: Options = {buf_size = 0x800000, passes = 100}) -> ApiResult {
-  api: API
-  api.opts = opts
-  _, api_ok := dynlib.initialize_symbols(&api, "./fasmx64.dll", "", "lib")
-  if !api_ok {return (DllError)(dynlib.last_error())}
-
+@(private)
+alloc_mem :: proc(buf_size: u32) -> rawptr {
   info: win.SYSTEM_INFO
   win.GetSystemInfo(&info)
+  alloc := win.VirtualAlloc(info.lpMinimumApplicationAddress, uint(buf_size), win.MEM_RESERVE, win.PAGE_READWRITE)
+  return win.VirtualAlloc(alloc, uint(buf_size), win.MEM_COMMIT, win.PAGE_READWRITE)
+}
 
-  alloc := win.VirtualAlloc(info.lpMinimumApplicationAddress, uint(opts.buf_size), win.MEM_RESERVE, win.PAGE_READWRITE)
-  api.committed = win.VirtualAlloc(alloc, uint(opts.buf_size), win.MEM_COMMIT, win.PAGE_READWRITE)
+make :: proc(buf_size: u32 = 0x800000) -> ApiResult {
+  api: API
+  api.buf_size = buf_size
+  _, api_ok := dynlib.initialize_symbols(&api, "./fasmx64.dll", "", "lib")
+  if !api_ok {return (DllError)(dynlib.last_error())}
+  api.committed = alloc_mem(buf_size)
   return api
+}
+
+resize_buffer :: proc(api: ^API, buf_size: u32) {
+  if api.buf_size != buf_size {
+    win.VirtualFree(api.committed, uint(api.buf_size), win.MEM_DECOMMIT)
+    api.committed = alloc_mem(buf_size)
+    api.buf_size = buf_size
+  }
 }
 
 FasmResult :: union {
@@ -78,9 +84,9 @@ version :: proc(api: API) -> string {
   return fmt.tprintf("%v.%v", maj, min)
 }
 
-run :: proc(api: API, input: cstring, opts: Options = {buf_size = 0x800000, passes = 100}) -> FasmResult {
-  api.fasm_Assemble(input, api.committed, opts.buf_size, opts.passes, nil)
-  bytes := ([^]byte)(api.committed)[:opts.buf_size]
+run :: proc(api: API, input: cstring, passes: u32 = 100) -> FasmResult {
+  api.fasm_Assemble(input, api.committed, api.buf_size, passes, nil)
+  bytes := ([^]byte)(api.committed)[:api.buf_size]
 
   cond, _ := endian.get_u32(bytes[0:4], .Little)
   a, _ := endian.get_u32(bytes[4:8], .Little)
@@ -125,7 +131,7 @@ DestroyErr :: union {
 }
 
 destroy :: proc(api: API) -> (res: DestroyErr = nil) {
-  win.VirtualFree(api.committed, uint(api.opts.buf_size), win.MEM_DECOMMIT)
+  win.VirtualFree(api.committed, uint(api.buf_size), win.MEM_DECOMMIT)
   if !dynlib.unload_library(api.lib) {
     res = (DllError)(dynlib.last_error())
   }
