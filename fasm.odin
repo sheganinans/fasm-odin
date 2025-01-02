@@ -71,8 +71,8 @@ SrcErr :: struct {
 }
 MacroErr :: struct {
   calling_line: u32,
-  src_line:     u32,
   calling_src:  string,
+  src_line:     u32,
   macro_src:    string,
 }
 
@@ -125,8 +125,8 @@ run :: proc(api: API, input: cstring, passes: u32 = 100) -> FasmResult {
       h2 := (^LINE_HEADER)(&bytes[h1.ml - base])
       ret.err_info = MacroErr {
         calling_line = h1.line_number,
-        src_line     = h2.line_number,
         calling_src  = strs[h1.line_number - 1],
+        src_line     = h2.line_number,
         macro_src    = strs[h2.line_number - 1],
       }
     }
