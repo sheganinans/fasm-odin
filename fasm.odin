@@ -124,7 +124,7 @@ run :: proc(api: API, input: cstring, passes: u32 = 100) -> FasmResult {
       }
       return ret
     } else {
-      h2 := (^LINE_HEADER)(&bytes[h1.fo_mcl - base])
+      h2 := (^LINE_HEADER)(&bytes[h1.ml - base])
       ret.err_info = MacroErr {
         calling_line = h1.line_number,
         src_line     = h2.line_number,
