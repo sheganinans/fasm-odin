@@ -110,8 +110,7 @@ run :: proc(api: API, input: cstring, passes: u32 = 100) -> FasmResult {
     return (OkState)(bytes[start:start + fs.od_el])
   } else {
     header := fs.od_el & 0x7F_FF_FF_FF
-    hb := header - base
-    h1 := (^LINE_HEADER)(&bytes[hb])
+    h1 := (^LINE_HEADER)(&bytes[header - base])
     src := strings.clone_from_cstring(input, allocator = context.temp_allocator)
     strs := strings.split(src, "\n", allocator = context.temp_allocator)
     ret := ErrState {
