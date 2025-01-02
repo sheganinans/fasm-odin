@@ -2,7 +2,6 @@ package fasm
 
 import "core:c"
 import "core:dynlib"
-import "core:encoding/endian"
 import "core:fmt"
 import "core:strings"
 
@@ -84,42 +83,54 @@ version :: proc(api: API) -> string {
   return fmt.tprintf("%v.%v", maj, min)
 }
 
+@(private)
+FASM_STATE :: struct {
+  cond:  u32,
+  ol_ec: u32, // output length or error code
+  od_el: u32, // output data or error line
+}
+
+@(private)
+LINE_HEADER :: struct {
+  file_path:   u32,
+  line_number: u32,
+  fo_mcl:      u32, // file offset or macro calling line
+  ml:          u32, // macro line
+}
+
 run :: proc(api: API, input: cstring, passes: u32 = 100) -> FasmResult {
   api.fasm_Assemble(input, api.committed, api.buf_size, passes, nil)
   bytes := ([^]byte)(api.committed)[:api.buf_size]
 
-  cond, _ := endian.get_u32(bytes[0:4], .Little)
-  a, _ := endian.get_u32(bytes[4:8], .Little)
-  b, _ := endian.get_u32(bytes[8:12], .Little)
+  fs := (^FASM_STATE)(&bytes[0])
   base := u32(uintptr(api.committed))
 
-  if (Condition)(cond) == .FASM_OK {
-    start := b - base
-    return (OkState)(bytes[start:start + b])
+  if (Condition)(fs.cond) == .FASM_OK {
+    start := fs.od_el - base
+    return (OkState)(bytes[start:start + fs.od_el])
   } else {
-    header := b & 0x7F_FF_FF_FF
+    header := fs.od_el & 0x7F_FF_FF_FF
     hb := header - base
-    ln, _ := endian.get_u32(bytes[hb + 4:hb + 8], .Little)
+    h1 := (^LINE_HEADER)(&bytes[hb])
     src := strings.clone_from_cstring(input, allocator = context.temp_allocator)
     strs := strings.split(src, "\n", allocator = context.temp_allocator)
     ret := ErrState {
-      err_code = (ErrorCode)(a),
+      err_code = (ErrorCode)(fs.ol_ec),
     }
-    if b & 0x80_00_00_00 == 0 {
+    if fs.od_el & 0x80_00_00_00 == 0 {
       ret.err_info = SrcErr {
-        line = ln,
-        src  = strs[ln - 1],
+        line = h1.line_number,
+        src  = strs[h1.line_number - 1],
       }
       return ret
     } else {
-      mcl, _ := endian.get_u32(bytes[hb + 12:hb + 16], .Little)
-      mcl_h := mcl - base
-      ln2, _ := endian.get_u32(bytes[mcl_h + 4:mcl_h + 8], .Little)
+      mcl_h := h1.fo_mcl - base
+      h2 := (^LINE_HEADER)(&bytes[mcl_h])
       ret.err_info = MacroErr {
-        calling_line = ln,
-        src_line     = ln2,
-        calling_src  = strs[ln - 1],
-        macro_src    = strs[ln2 - 1],
+        calling_line = h1.line_number,
+        src_line     = h2.line_number,
+        calling_src  = strs[h1.line_number - 1],
+        macro_src    = strs[h2.line_number - 1],
       }
       return ret
     }
