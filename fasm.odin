@@ -21,7 +21,7 @@ API :: struct {
   ) -> i16,
 }
 
-ApiResult :: union {
+ApiResult :: union #no_nil {
   API,
   DllError,
 }
@@ -52,7 +52,7 @@ resize_buffer :: proc(api: ^API, buf_size: u32) {
   }
 }
 
-FasmResult :: union {
+FasmResult :: union #no_nil {
   OkState,
   ErrState,
 }
@@ -61,7 +61,7 @@ ErrState :: struct {
   err_code: ErrorCode,
   err_info: ErrInfo,
 }
-ErrInfo :: union {
+ErrInfo :: union #no_nil {
   SrcErr,
   MacroErr,
 }
