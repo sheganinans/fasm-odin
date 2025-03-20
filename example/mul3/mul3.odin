@@ -31,9 +31,7 @@ main :: proc() {
 
     case fasm.OkState:
       raw := raw_data(res)
-
       virtual.protect(raw, len(res), virtual.Protect_Flags{.Execute})
-
       mul3 := transmute(proc "c" (_: int) -> int)raw
 
       for i in 0 ..= 10 {

@@ -31,9 +31,7 @@ main :: proc() {
 
     case fasm.OkState:
       raw := raw_data(res)
-
       virtual.protect(raw, len(res), virtual.Protect_Flags{.Execute})
-
       get_cycles := transmute(proc "c" () -> u64)raw
 
       freq, start, end := new(win.LARGE_INTEGER), new(win.LARGE_INTEGER), new(win.LARGE_INTEGER)
