@@ -1,9 +1,9 @@
-package example
+package mul3
 
 import "core:fmt"
 import "core:mem/virtual"
 
-import fasm ".."
+import fasm "../.."
 
 main :: proc() {
   switch api in fasm.make() {
