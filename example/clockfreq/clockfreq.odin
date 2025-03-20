@@ -16,7 +16,7 @@ main :: proc() {
   case fasm.API:
     defer fasm.destroy(api)
 
-    mul3_asm: cstring = `
+    get_cycles_asm: cstring = `
       use64
       rdtsc
       shl rdx, 32
@@ -24,7 +24,7 @@ main :: proc() {
       ret
     `
 
-    switch bytes in fasm.run(api, mul3_asm) {
+    switch bytes in fasm.run(api, get_cycles_asm) {
     case fasm.ErrState:
       fmt.printfln("%v", bytes)
       return
