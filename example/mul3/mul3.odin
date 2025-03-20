@@ -24,15 +24,15 @@ main :: proc() {
       ret
     `
 
-    switch bytes in fasm.run(api, mul3_asm) {
+    switch res in fasm.run(api, mul3_asm) {
     case fasm.ErrState:
-      fmt.printfln("%v", bytes)
+      fmt.printfln("%v", res)
       return
 
     case fasm.OkState:
-      raw := raw_data(bytes)
+      raw := raw_data(res)
 
-      virtual.protect(raw, len(bytes), virtual.Protect_Flags{.Execute})
+      virtual.protect(raw, len(res), virtual.Protect_Flags{.Execute})
 
       mul3 := transmute(proc "c" (_: int) -> int)raw
 

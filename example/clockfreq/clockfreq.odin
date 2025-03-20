@@ -24,15 +24,15 @@ main :: proc() {
       ret
     `
 
-    switch bytes in fasm.run(api, get_cycles_asm) {
+    switch res in fasm.run(api, get_cycles_asm) {
     case fasm.ErrState:
-      fmt.printfln("%v", bytes)
+      fmt.printfln("%v", res)
       return
 
     case fasm.OkState:
-      raw := raw_data(bytes)
+      raw := raw_data(res)
 
-      virtual.protect(raw, len(bytes), virtual.Protect_Flags{.Execute})
+      virtual.protect(raw, len(res), virtual.Protect_Flags{.Execute})
 
       get_cycles := transmute(proc "c" () -> u64)raw
 
